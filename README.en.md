@@ -9,8 +9,8 @@
 [![Release](https://img.shields.io/github/v/release/LuxUmbra697/DSH-Desktop?style=flat-square&color=22d3a6)](https://github.com/LuxUmbra697/DSH-Desktop/releases)
 [![Stars](https://img.shields.io/github/stars/LuxUmbra697/DSH-Desktop?style=flat-square&color=22d3a6)](https://github.com/LuxUmbra697/DSH-Desktop/stargazers)
 [![License](https://img.shields.io/github/license/LuxUmbra697/DSH-Desktop?style=flat-square&color=22d3a6)](LICENSE)
-[![Platform](https://img.shields.io/badge/platform-Windows%2010%2F11-0078d4?style=flat-square)](#快速开始)
-[![Payload](https://img.shields.io/badge/payload-210%20MB-22d3a6?style=flat-square)](#体积可以裁到多小)
+[![Platform](https://img.shields.io/badge/platform-Windows%2010%2F11-0078d4?style=flat-square)](#quick-start)
+[![Payload](https://img.shields.io/badge/payload-210%20MB-22d3a6?style=flat-square)](#how-small-can-it-be-pruned)
 [![DSH](https://img.shields.io/badge/DSH-0.1.5--rc.2-4d6bfe?style=flat-square)](https://github.com/deepseek-ai/deepseek-harness)
 
 [English](README.en.md) · [简体中文](README.md) · [Plugin guide (Chinese)](docs/PLUGIN-GUIDE.zh.md)
