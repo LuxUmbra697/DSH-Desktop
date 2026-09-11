@@ -14,7 +14,7 @@
 [CmdletBinding()]
 param(
     [string]$DshVersion = '0.1.5-rc.2',
-    [string]$AppVersion = '1.1.1',
+    [string]$AppVersion = '1.1.2',
     [string]$NodeExe = '',
     [switch]$SkipRuntime,
     [switch]$SkipWebView2,
@@ -288,3 +288,4 @@ if ($zipPath) { $rows += [pscustomobject]@{ 组件 = '便携 ZIP'; 路径 = $zip
 $rows | Format-Table -AutoSize
 Write-Host '构建完成：双击 app\DSH Desktop.exe 即可启动。' -ForegroundColor Green
 Write-Host '提示：若本机已有合适的 Node，可在「文件 → 运行环境管理」里删除内置 Node，再省约 89 MB。' -ForegroundColor DarkGray
+
