@@ -71,7 +71,18 @@ plugins\
 "DSH Desktop.exe" --open runtime   # 启动后直接打开面板：runtime | update | plugins | diagnostics
 ```
 
-窗口快捷键（页面获得焦点时由注入的页面监听器经宿主消息回传，因此在页面内同样有效）：`Alt+R` 运行环境管理、`Alt+U` 检查更新、`Alt+P` 已加载插件、`Alt+D` 诊断信息、`Alt+L` 复制访问地址、`F5` 重新加载、`F11` 全屏、`F12` 开发者工具、`Ctrl + / - / 0` 缩放。
+窗口快捷键（页面获得焦点时由注入的页面监听器经宿主消息回传，因此在页面内同样有效）：`Alt+R` 运行环境管理、`Alt+U` 检查更新、`Alt+P` 已加载插件、`Alt+D` 诊断信息、`Alt+L` 复制访问地址、`Alt+M` 或 `F10` 显示/隐藏窗口工具栏、`F5` 重新加载、`F11` 全屏、`F12` 开发者工具、`Ctrl + / - / 0` 缩放。
+
+想让 DSH 界面独占整个窗口，把工具栏关掉即可：
+
+```jsonc
+// config.json
+{ "showMenuBar": false, "showStatusBar": false }
+```
+
+或者运行时按 `Alt+M` / `F10` 切换，状态会写回 `config.json`。窗口布局永远按「客户区 − 菜单栏 − 状态栏 = 页面区域」计算，所以工具栏不会盖住 DSH 自己的顶部标题栏和底部输入区；`tests\smoke.ps1` 里有 4 项断言专门盯这件事。
+
+**注入样式不要覆盖页面元素。** 早期示例插件用 `body::before` / `body::after` 画顶部彩条和右下角角标，结果盖住了 DSH 的标题栏与右下角按钮——现在示例改成只覆盖 DSH 自己的主题变量（`--dsh-accent` 等），页面布局、可点区域与滚动范围完全由 DSH 决定。
 
 ## 二、DSH 宿主插件
 

@@ -143,6 +143,30 @@ $navDetail = 'no readiness line'
 if ($nav) { $navDetail = 'navigation completed' }
 Assert-True 'WebView2 已加载 DSH 界面' ($null -ne $nav) $navDetail
 
+# The page must own the whole area between the menu and status bars: any gap here
+# is what makes the DSH interface look cut off.
+$layout = Wait-ForLogMatch 'layout: client=(\d+)x(\d+) webview=(\d+)x(\d+) at (-?\d+),(-?\d+) host=(\d+)x(\d+) at (-?\d+),(-?\d+) menu=(\d+) status=(\d+)' 30
+if ($layout) {
+    $clientW = [int]$layout.Matches[0].Groups[1].Value
+    $clientH = [int]$layout.Matches[0].Groups[2].Value
+    $viewW = [int]$layout.Matches[0].Groups[3].Value
+    $viewH = [int]$layout.Matches[0].Groups[4].Value
+    $viewX = [int]$layout.Matches[0].Groups[5].Value
+    $viewY = [int]$layout.Matches[0].Groups[6].Value
+    $hostW = [int]$layout.Matches[0].Groups[7].Value
+    $hostH = [int]$layout.Matches[0].Groups[8].Value
+    $hostX = [int]$layout.Matches[0].Groups[9].Value
+    $hostY = [int]$layout.Matches[0].Groups[10].Value
+    $menuH = [int]$layout.Matches[0].Groups[11].Value
+    $statusH = [int]$layout.Matches[0].Groups[12].Value
+    Assert-True '窗口布局：页面占满可用宽度' ($hostW -eq $clientW -and $hostX -eq 0) "client=$clientW host=$hostW x=$hostX"
+    Assert-True '窗口布局：页面高度 = 客户区 − 菜单 − 状态栏' ($hostH -eq ($clientH - $menuH - $statusH)) "client=$clientH menu=$menuH status=$statusH host=$hostH"
+    Assert-True '窗口布局：页面紧贴菜单栏下方，不被菜单覆盖' ($hostY -eq $menuH) "y=$hostY menu=$menuH"
+    Assert-True '窗口布局：WebView 填满页面区域' ($viewW -eq $hostW -and $viewH -eq $hostH -and $viewX -eq 0 -and $viewY -eq 0) "host=$hostW`x$hostH view=$viewW`x$viewH at $viewX,$viewY"
+} else {
+    Assert-True '窗口布局标记' $false 'no layout line in log'
+}
+
 $webviewNow = Get-Count 'msedgewebview2'
 Assert-True 'WebView2 渲染进程已启动' ($webviewNow -gt $webviewBefore) ("before=$webviewBefore now=$webviewNow")
 $msedgeNow = Get-Count 'msedge'

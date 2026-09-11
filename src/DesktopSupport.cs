@@ -53,6 +53,10 @@ namespace DshDesktop
         [DataMember(Name = "checkUpdatesOnStartup")] public bool? CheckUpdatesOnStartup;
         /// <summary>Null means the key was omitted, which never installs without asking.</summary>
         [DataMember(Name = "autoUpdate")] public bool? AutoUpdate;
+        /// <summary>Null means the key was omitted, which shows the menu bar.</summary>
+        [DataMember(Name = "showMenuBar")] public bool? ShowMenuBar;
+        /// <summary>Null means the key was omitted, which shows the status bar.</summary>
+        [DataMember(Name = "showStatusBar")] public bool? ShowStatusBar;
     }
 
     /// <summary>One plugin directory's launcher.json. Every field is optional.</summary>

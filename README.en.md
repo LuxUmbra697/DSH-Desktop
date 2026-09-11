@@ -24,7 +24,7 @@
 | Main window: a standalone page, unrelated to the browser | Compact window: responsive layout at 900×620 |
 | --- | --- |
 | ![Main window](docs/images/01-main-window.png) | ![Compact window](docs/images/02-compact-window.png) |
-| The bundled Node and DSH runtime start `dsh web`, and WebView2 hosts the interface in **its own window**. The example plugin rewrites the window title to "DSH Desktop · My Software AI Assistant"; the top brand bar and the bottom-right mark come from injected styles, and the status bar shows the service address and zoom level. | The window minimum is 420×320, small screens maximize automatically, and the status bar hides itself in narrow windows; the DSH page collapses its own sidebar. The same interface switches clarity per monitor at 125%/150%/200% zoom. |
+| The bundled Node and DSH runtime start `dsh web`, and WebView2 hosts the interface in **its own window**. The example plugin rewrites the window title to "DSH Desktop · My Software AI Assistant"; the brand colour comes from overriding the DSH theme variables. | The window minimum is 420×320, small screens maximize automatically, and the status bar hides itself in narrow windows; the DSH page collapses its own sidebar. The same interface switches clarity per monitor at 125%/150%/200% zoom. |
 
 | Runtime manager: what the machine has and how much you can save | Check for updates: how it differs from the official npx, written in the UI |
 | --- | --- |
@@ -158,9 +158,11 @@ For the full field list, precedence, injection context, and troubleshooting see 
 | `Alt+U` | Check for updates | `F11` / `Esc` | Full screen / leave full screen |
 | `Alt+P` | Loaded plugins | `F12` | Developer tools |
 | `Alt+D` | Diagnostics | `Ctrl +` / `Ctrl -` / `Ctrl 0` | Zoom in / zoom out / reset zoom |
-| `Alt+L` | Copy the access address | | |
+| Alt+L | Copy the access address | Alt+M / F10 | Show / hide the window chrome |
 
 > While the page has focus, keystrokes are captured by the injected page listener and sent back through host messages (the standard WebView2 channel), so the shortcuts work inside the page as well.
+
+> To give the DSH interface the whole window, press Alt+M (or F10) to hide the menu and status bars; the choice is written back to showMenuBar / showStatusBar in config.json. The page area is exactly the client area minus those bars, so the chrome never covers the DSH title bar or its input area: four assertions in 	ests\\smoke.ps1 check this.
 
 ## Build, self-test, and screenshots
 

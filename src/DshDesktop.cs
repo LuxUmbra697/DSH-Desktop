@@ -109,6 +109,7 @@ namespace DshDesktop
         private List<LoadedPlugin> plugins;
         private DshServer server;
         private WebView2 webView;
+        private Panel content;
         private Label splash;
         private MenuStrip menu;
         private StatusStrip status;
@@ -137,9 +138,18 @@ namespace DshDesktop
             BackColor = Color.FromArgb(18, 20, 26);
             ForeColor = Color.Gainsboro;
 
+            // The page host is positioned explicitly in LayoutContent: WinForms docking
+            // order between a fill control and the menu/status strips depends on
+            // z-order subtleties, and getting it wrong paints the strips over the page.
+            content = new Panel();
+            content.BackColor = Color.FromArgb(18, 20, 26);
+            Controls.Add(content);
+
             BuildMenu();
             BuildStatusBar();
+            LayoutContent();
             BuildSplash();
+            ApplyChrome();
 
             Load += OnFormLoad;
             FormClosing += OnFormClosing;
@@ -216,6 +226,52 @@ namespace DshDesktop
             if (string.IsNullOrEmpty(config.NodeMode)) config.NodeMode = "auto";
             if (config.NodePath == null) config.NodePath = "";
             if (string.IsNullOrEmpty(config.Channel)) config.Channel = "next";
+            // The window chrome is optional: a product that wants the page to own the
+            // whole window sets both keys to false, and Alt+M switches them at runtime.
+            if (!config.ShowMenuBar.HasValue) config.ShowMenuBar = true;
+            if (!config.ShowStatusBar.HasValue) config.ShowStatusBar = true;
+        }
+
+        /// <summary>Applies the configured window chrome, keeping the page layout in charge.</summary>
+        private void ApplyChrome()
+        {
+            menu.Visible = config.ShowMenuBar.HasValue ? config.ShowMenuBar.Value : true;
+            status.Visible = config.ShowStatusBar.HasValue ? config.ShowStatusBar.Value : true;
+            LayoutContent();
+        }
+
+        /// <summary>
+        /// Gives the page host exactly the client area minus the visible chrome, so
+        /// the menu and status bars never cover part of the DSH interface.
+        /// </summary>
+        private void LayoutContent()
+        {
+            if (content == null)
+            {
+                return;
+            }
+            int top = menu != null && menu.Visible ? menu.Height : 0;
+            int bottom = status != null && status.Visible ? status.Height : 0;
+            int height = ClientSize.Height - top - bottom;
+            if (height < 0)
+            {
+                height = 0;
+            }
+            content.Bounds = new Rectangle(0, top, ClientSize.Width, height);
+        }
+
+        /// <summary>Shows or hides the menu and status bars so the page can use the whole window.</summary>
+        private void ToggleChrome()
+        {
+            bool show = !(menu.Visible && status.Visible);
+            config.ShowMenuBar = show;
+            config.ShowStatusBar = show;
+            menu.Visible = show;
+            status.Visible = show;
+            LayoutContent();
+            SaveConfig();
+            statusText.Text = show ? "已显示窗口工具栏（Alt+M 隐藏）" : "已隐藏窗口工具栏（Alt+M 显示）";
+            log.Info("chrome toggled: " + (show ? "visible" : "hidden"));
         }
 
         /// <summary>Writes config.json back, used after the runtime panel changes the layout.</summary>
@@ -408,13 +464,17 @@ namespace DshDesktop
             splash.ForeColor = Color.Gainsboro;
             splash.Text = "正在启动 DeepSeek Harness…" + Environment.NewLine + Environment.NewLine
                 + "首次启动会在 data\\dsh-home 建立运行环境，请稍候。";
-            Controls.Add(splash);
+            content.Controls.Add(splash);
             splash.BringToFront();
         }
 
         private async void OnFormLoad(object sender, EventArgs e)
         {
+            // Control heights are only real once the handle exists, so the page host
+            // is measured again here rather than trusting the constructor's layout.
+            LayoutContent();
             WindowState = boundsState;
+            LayoutContent();
             string panel = ParseStartupPanel(commandLine);
             if (panel.Length > 0)
             {
@@ -827,8 +887,8 @@ namespace DshDesktop
             webView.DefaultBackgroundColor = Color.FromArgb(18, 20, 26);
             // The control must be parented before EnsureCoreWebView2Async, otherwise
             // it has no window handle to host the browser and initialization times out.
-            // The splash is added first and therefore stays in front until we swap.
-            Controls.Add(webView);
+            // The splash is in front until the swap below.
+            content.Controls.Add(webView);
             webView.SendToBack();
 
             string userDataFolder = Path.Combine(paths.DataDirectory, "webview2");
@@ -889,7 +949,7 @@ namespace DshDesktop
             }
             if (splash != null)
             {
-                Controls.Remove(splash);
+                content.Controls.Remove(splash);
                 splash.Dispose();
                 splash = null;
             }
@@ -897,6 +957,8 @@ namespace DshDesktop
             webView.BringToFront();
             menu.BringToFront();
             status.BringToFront();
+            LayoutContent();
+            webView.BringToFront();
             webView.CoreWebView2.Navigate(accessUrl);
         }
 
@@ -957,9 +1019,9 @@ namespace DshDesktop
             builder.Append("var send=function(action){try{window.chrome.webview.postMessage('dshDesktop:'+action);}catch(e){}};");
             builder.Append("document.addEventListener('keydown',function(event){");
             builder.Append("var key=event.key;var action=null;");
-            builder.Append("if(event.altKey&&!event.ctrlKey&&!event.metaKey){var alt={r:'runtime',u:'update',p:'plugins',d:'diagnostics',l:'copy-url'};action=alt[(key||'').toLowerCase()];}");
+            builder.Append("if(event.altKey&&!event.ctrlKey&&!event.metaKey){var alt={r:'runtime',u:'update',p:'plugins',d:'diagnostics',l:'copy-url',m:'chrome'};action=alt[(key||'').toLowerCase()];}");
             builder.Append("else if(event.ctrlKey&&!event.altKey){if(key==='='||key==='+')action='zoom-in';else if(key==='-')action='zoom-out';else if(key==='0')action='zoom-reset';}");
-            builder.Append("else if(key==='F5')action='reload';else if(key==='F11')action='fullscreen';else if(key==='F12')action='devtools';");
+            builder.Append("else if(key==='F5')action='reload';else if(key==='F10')action='chrome';else if(key==='F11')action='fullscreen';else if(key==='F12')action='devtools';");
             builder.Append("if(action){event.preventDefault();event.stopPropagation();send(action);}},true);})();");
             return builder.ToString();
         }
@@ -1027,6 +1089,13 @@ namespace DshDesktop
             statusText.Text = "DSH 已就绪";
             SetZoom(currentZoom <= 0.1 ? config.ZoomFactor : currentZoom);
             Text = EffectiveTitle();
+            // Geometry marker: the page must own everything the chrome does not.
+            log.Info("layout: client=" + ClientSize.Width + "x" + ClientSize.Height
+                + " webview=" + webView.Width + "x" + webView.Height
+                + " at " + webView.Left + "," + webView.Top
+                + " host=" + content.Width + "x" + content.Height + " at " + content.Left + "," + content.Top
+                + " menu=" + (menu.Visible ? menu.Height : 0)
+                + " status=" + (status.Visible ? status.Height : 0));
             // Readiness marker for the end-to-end test: the window is showing the app.
             log.Info("webview2 ready: " + accessUrl);
         }
@@ -1293,7 +1362,7 @@ namespace DshDesktop
                 splash.Text = "DSH 启动失败。" + Environment.NewLine + Environment.NewLine
                     + "日志：" + log.CurrentFile + Environment.NewLine + Environment.NewLine + tail;
                 splash.ForeColor = Color.FromArgb(255, 170, 170);
-                Controls.Add(splash);
+                content.Controls.Add(splash);
                 splash.BringToFront();
             }
             statusText.Text = "启动失败";
@@ -1376,6 +1445,7 @@ namespace DshDesktop
                 if (key == Keys.P) { ShowPlugins(); return true; }
                 if (key == Keys.D) { ShowDiagnostics(); return true; }
                 if (key == Keys.L) { CopyUrl(); return true; }
+                if (key == Keys.M) { ToggleChrome(); return true; }
                 return false;
             }
             if (control)
@@ -1388,6 +1458,7 @@ namespace DshDesktop
             if (key == Keys.F5) { Reload(); return true; }
             if (key == Keys.F11) { ToggleFullScreen(); return true; }
             if (key == Keys.F12) { OpenDevTools(); return true; }
+            if (key == Keys.F10) { ToggleChrome(); return true; }
             if (key == Keys.Escape && fullScreen) { ToggleFullScreen(); return true; }
             return false;
         }
@@ -1419,6 +1490,7 @@ namespace DshDesktop
             if (message.IndexOf("zoom-out", StringComparison.Ordinal) >= 0) { Zoom(1 / 1.1); return; }
             if (message.IndexOf("zoom-reset", StringComparison.Ordinal) >= 0) { SetZoom(config.ZoomFactor); return; }
             if (message.IndexOf("reload", StringComparison.Ordinal) >= 0) { Reload(); return; }
+            if (message.IndexOf("chrome", StringComparison.Ordinal) >= 0) { ToggleChrome(); return; }
             if (message.IndexOf("fullscreen", StringComparison.Ordinal) >= 0) { ToggleFullScreen(); return; }
             if (message.IndexOf("devtools", StringComparison.Ordinal) >= 0) { OpenDevTools(); return; }
         }
@@ -1433,10 +1505,12 @@ namespace DshDesktop
 
         private void OnResize(object sender, EventArgs e)
         {
+            LayoutContent();
             if (WindowState != FormWindowState.Minimized)
             {
                 bool compact = Width < 720;
-                status.Visible = !fullScreen && !compact;
+                status.Visible = !fullScreen && !compact && (config.ShowStatusBar.HasValue ? config.ShowStatusBar.Value : true);
+                LayoutContent();
             }
         }
 

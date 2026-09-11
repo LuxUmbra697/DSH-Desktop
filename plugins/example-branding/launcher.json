@@ -1,6 +1,6 @@
 {
   "name": "example-branding",
-  "description": "示例插件：改窗口标题与尺寸、注入品牌样式与脚本、给 DSH 进程加环境变量。",
+  "description": "示例插件：改窗口标题与尺寸、用 DSH 自己的主题变量换品牌色、注入脚本加一个诊断快捷键、给 DSH 进程加环境变量。",
   "enabled": true,
   "title": "DSH Desktop · 我的软件 AI 助手",
   "width": 1360,
