@@ -14,7 +14,7 @@
 [CmdletBinding()]
 param(
     [string]$DshVersion = '0.1.5-rc.2',
-    [string]$AppVersion = '1.1.0',
+    [string]$AppVersion = '1.1.1',
     [string]$NodeExe = '',
     [switch]$SkipRuntime,
     [switch]$SkipWebView2,

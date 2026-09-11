@@ -25,7 +25,7 @@ namespace DshDesktop
 {
     internal static class Program
     {
-        private const string Version = "1.1.0";
+        private const string Version = "1.1.1";
         private const string MutexName = "Global\\DshDesktop.SingleInstance.6F0B6E2A";
 
         [STAThread]
