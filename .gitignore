@@ -8,16 +8,21 @@ app/config.json
 app/DSH Desktop.exe
 app/Microsoft.Web.WebView2.Core.dll
 app/Microsoft.Web.WebView2.WinForms.dll
-app/Microsoft.Web.WebView2.WinForms.dll
 app/WebView2Loader.dll
 app/README.md
 app/PLUGIN-GUIDE.zh.md
+app/LICENSE
 app/LICENSE.txt
 app/NOTICE.txt
+app/scripts/
 
-# Download and npm caches
+# Portable archives and download caches
+dist/
 .cache/
 
-# Generated icon and test scratch output (the captured window screenshot is kept)
+# Generated binaries from source art (assets/icon-source.png and banner-source.png
+# are committed; these are the derived files)
 assets/icon.ico
+
+# Test scratch output; the captured window screenshot is kept as evidence
 tests/artifacts/*.tmp.png

@@ -55,6 +55,24 @@ plugins\
 - **`dshLinkModules`**：填一个插件内目录名（示例用 `dsh`），启动器会把内置运行时的 `node_modules` 以目录联接的方式挂到 `plugins\<id>\dsh\node_modules`，这样你的宿主插件可以直接 `import { defineTool } from '@deepseek-ai/dsh-tools'`，不需要 `npm install`。
 - **`env` / `args`**：`env` 进入 `dsh` 子进程环境，`args` 追加到命令行（例如额外的 `--trusted-host`）。
 
+## 一之二、config.json 里与运行环境和更新相关的键
+
+| 键 | 默认 | 作用 |
+| --- | --- | --- |
+| `nodeMode` | `auto` | `auto` = 先用内置 Node，不可用再找系统 Node；`system` = 只用系统 Node（删除内置 Node 后启动器会写这个值）；`bundled` = 只用内置 |
+| `nodePath` | `""` | 指定 node.exe 绝对路径，优先级最高（用于自带运行时的产品） |
+| `channel` | `next` | 更新渠道：`next` 含预发布，`latest` 仅正式版 |
+| `checkUpdatesOnStartup` | `true` | 启动后静默查一次 npm，有新版本只在状态栏提示 |
+| `autoUpdate` | `false` | 查到新版本后自动更新并重启（无人值守场景才打开） |
+
+启动器还接受两个命令行开关，适合做桌面快捷方式：
+
+```powershell
+"DSH Desktop.exe" --open runtime   # 启动后直接打开面板：runtime | update | plugins | diagnostics
+```
+
+窗口快捷键（页面获得焦点时由注入的页面监听器经宿主消息回传，因此在页面内同样有效）：`Alt+R` 运行环境管理、`Alt+U` 检查更新、`Alt+P` 已加载插件、`Alt+D` 诊断信息、`Alt+L` 复制访问地址、`F5` 重新加载、`F11` 全屏、`F12` 开发者工具、`Ctrl + / - / 0` 缩放。
+
 ## 二、DSH 宿主插件
 
 最小可用示例（`plugins\my-plugin\dsh.patch.yml` + `plugins\my-plugin\dsh\my-plugin.mjs`）：

@@ -25,7 +25,7 @@ namespace DshDesktop
 {
     internal static class Program
     {
-        private const string Version = "1.0.0";
+        private const string Version = "1.1.0";
         private const string MutexName = "Global\\DshDesktop.SingleInstance.6F0B6E2A";
 
         [STAThread]
@@ -213,6 +213,23 @@ namespace DshDesktop
             if (config.MinHeight <= 0) config.MinHeight = 320;
             if (config.StartupTimeoutSeconds <= 0) config.StartupTimeoutSeconds = 240;
             if (config.ZoomFactor <= 0.1) config.ZoomFactor = 1.0;
+            if (string.IsNullOrEmpty(config.NodeMode)) config.NodeMode = "auto";
+            if (config.NodePath == null) config.NodePath = "";
+            if (string.IsNullOrEmpty(config.Channel)) config.Channel = "next";
+        }
+
+        /// <summary>Writes config.json back, used after the runtime panel changes the layout.</summary>
+        public void SaveConfig()
+        {
+            try
+            {
+                Json.Write(Path.Combine(paths.Root, "config.json"), config);
+                log.Info("config.json saved");
+            }
+            catch (Exception ex)
+            {
+                log.Error("failed to save config.json: " + ex.Message);
+            }
         }
 
         /// <summary>Plugins override config.json so a plugin ships its own defaults.</summary>
@@ -324,6 +341,7 @@ namespace DshDesktop
             file.DropDownItems.Add(MenuItem("重启 DSH 服务", delegate { RestartServer(); }));
             file.DropDownItems.Add(MenuItem("选择工作区…", delegate { ChooseWorkspace(); }));
             file.DropDownItems.Add(new ToolStripSeparator());
+            file.DropDownItems.Add(MenuItem("运行环境管理…(&R)", delegate { ShowRuntimeManager(); }));
             file.DropDownItems.Add(MenuItem("打开数据目录", delegate { OpenPath(paths.DataDirectory); }));
             file.DropDownItems.Add(MenuItem("打开配置目录", delegate { OpenPath(paths.Root); }));
             file.DropDownItems.Add(MenuItem("打开日志文件", delegate { OpenPath(log.CurrentFile); }));
@@ -347,6 +365,7 @@ namespace DshDesktop
             pluginMenu.DropDownItems.Add(MenuItem("重新扫描插件（需重启）", delegate { RestartServer(); }));
 
             ToolStripMenuItem help = new ToolStripMenuItem("帮助(&H)");
+            help.DropDownItems.Add(MenuItem("检查更新…(&U)", delegate { ShowUpdateDialog(); }));
             help.DropDownItems.Add(MenuItem("诊断信息…", delegate { ShowDiagnostics(); }));
             help.DropDownItems.Add(MenuItem("关于 DSH Desktop", delegate { ShowAbout(); }));
 
@@ -396,7 +415,55 @@ namespace DshDesktop
         private async void OnFormLoad(object sender, EventArgs e)
         {
             WindowState = boundsState;
+            string panel = ParseStartupPanel(commandLine);
+            if (panel.Length > 0)
+            {
+                startupPanel = panel;
+                // A desktop shortcut can open a panel directly; the delay lets the
+                // window paint before the modal dialog covers it. The field keeps the
+                // timer alive: a WinForms timer that nothing references never ticks.
+                panelTimer = new System.Windows.Forms.Timer();
+                panelTimer.Interval = 1200;
+                panelTimer.Tick += delegate
+                {
+                    panelTimer.Stop();
+                    panelTimer.Dispose();
+                    panelTimer = null;
+                    OpenStartupPanel();
+                };
+                panelTimer.Start();
+            }
             await StartAndAttach();
+        }
+
+        /// <summary>Reads <c>--open &lt;panel&gt;</c> from the command line.</summary>
+        private static string ParseStartupPanel(string[] args)
+        {
+            for (int i = 0; i < args.Length; i += 1)
+            {
+                if (string.Equals(args[i], "--open", StringComparison.OrdinalIgnoreCase) && i + 1 < args.Length)
+                {
+                    return args[i + 1].Trim().ToLowerInvariant();
+                }
+            }
+            return "";
+        }
+
+        private void OpenStartupPanel()
+        {
+            log.Info("opening startup panel: " + startupPanel);
+            try
+            {
+                if (startupPanel == "runtime") { ShowRuntimeManager(); return; }
+                if (startupPanel == "update") { ShowUpdateDialog(); return; }
+                if (startupPanel == "plugins") { ShowPlugins(); return; }
+                if (startupPanel == "diagnostics") { ShowDiagnostics(); return; }
+                log.Warn("unknown --open panel: " + startupPanel);
+            }
+            catch (Exception ex)
+            {
+                log.Error("startup panel failed: " + ex);
+            }
         }
 
         /// <summary>Starts the server, then hosts the serving URL in WebView2.</summary>
@@ -453,6 +520,7 @@ namespace DshDesktop
                     return;
                 }
                 ShowWebViewAndNavigate();
+                CheckUpdatesInBackground();
             }
             catch (Exception ex)
             {
@@ -463,11 +531,11 @@ namespace DshDesktop
 
         private bool StartServer()
         {
-            string nodeExe = paths.NodeExe;
-            if (!File.Exists(nodeExe))
+            string nodeExe = ResolveNodeExe();
+            if (string.IsNullOrEmpty(nodeExe))
             {
-                nodeExe = "node";
-                log.Warn("bundled node.exe missing, falling back to PATH node");
+                statusText.Text = "找不到可用的 Node 运行时（文件 → 运行环境管理）";
+                return false;
             }
             if (!File.Exists(paths.DshEntry))
             {
@@ -594,6 +662,155 @@ namespace DshDesktop
             return ok;
         }
 
+        /// <summary>
+        /// Chooses the Node executable: an explicit path, the bundled copy, or a
+        /// system installation, in that order, each one checked against the DSH
+        /// engine range before it is used.
+        /// </summary>
+        /// <returns>The executable to run, or an empty string when none is usable.</returns>
+        private string ResolveNodeExe()
+        {
+            if (!string.IsNullOrEmpty(config.NodePath) && File.Exists(config.NodePath))
+            {
+                log.Info("node: config.json nodePath = " + config.NodePath);
+                return config.NodePath;
+            }
+            bool bundledExists = File.Exists(paths.NodeExe);
+            if (bundledExists && !string.Equals(config.NodeMode, "system", StringComparison.OrdinalIgnoreCase))
+            {
+                NodeProbe bundled = RuntimeProbe.ProbeNode(paths.NodeExe);
+                if (bundled.Usable)
+                {
+                    log.Info("node: bundled " + bundled.Version + " (" + paths.NodeExe + ")");
+                    return paths.NodeExe;
+                }
+                log.Warn("bundled node unusable: " + bundled.Reason);
+            }
+            NodeProbe system = RuntimeProbe.FindSystemNode();
+            if (system.Found && system.Usable)
+            {
+                log.Info("node: system " + system.Version + " (" + system.Path + ")");
+                return system.Path;
+            }
+            if (bundledExists)
+            {
+                log.Warn("using the bundled node although it reports " + system.Label);
+                return paths.NodeExe;
+            }
+            if (system.Found)
+            {
+                log.Error("system node " + system.Version + " does not satisfy " + RuntimeProbe.EngineRangeText());
+            }
+            else
+            {
+                log.Error("no Node runtime: the bundled copy is missing and no system Node was found. "
+                    + "Use File -> Runtime manager to download it again.");
+            }
+            return "";
+        }
+
+        /// <summary>Opens the runtime panel, which can drop or restore the bundled Node.</summary>
+        private void ShowRuntimeManager()
+        {
+            log.Info("runtime panel: creating form");
+            using (RuntimeForm form = new RuntimeForm(paths, log, config, SaveConfig, RestartServer))
+            {
+                log.Info("runtime panel: showing dialog");
+                DialogResult result = form.ShowDialog(this);
+                log.Info("runtime panel: closed with " + result);
+            }
+        }
+
+        /// <summary>Opens the update dialog; installs nothing until the user confirms.</summary>
+        private void ShowUpdateDialog()
+        {
+            using (UpdateForm form = new UpdateForm(paths, log, config, SaveConfig, RestartServer))
+            {
+                form.ShowDialog(this);
+            }
+        }
+
+        /// <summary>
+        /// Asks npm for a newer DSH after the window is up. Never installs unless
+        /// config.json sets autoUpdate, because a silent runtime swap would change
+        /// behaviour under the user.
+        /// </summary>
+        private void CheckUpdatesInBackground()
+        {
+            bool enabled = !config.CheckUpdatesOnStartup.HasValue || config.CheckUpdatesOnStartup.Value;
+            if (!enabled || updateCheckStarted)
+            {
+                return;
+            }
+            updateCheckStarted = true;
+            Task.Run(delegate { return Updates.Check(paths, config.Channel); }).ContinueWith(delegate(Task<UpdateInfo> task)
+            {
+                UpdateInfo info = task.Result;
+                if (shuttingDown || !IsHandleCreated)
+                {
+                    return;
+                }
+                try
+                {
+                    BeginInvoke(new MethodInvoker(delegate
+                    {
+                        if (!info.Ok)
+                        {
+                            log.Info("startup update check failed: " + info.Error);
+                            return;
+                        }
+                        if (!info.UpdateAvailable)
+                        {
+                            log.Info("dsh runtime is current (" + info.CurrentVersion + ")");
+                            return;
+                        }
+                        log.Info("update available: " + info.CurrentVersion + " -> " + info.TargetVersion);
+                        bool auto = config.AutoUpdate.HasValue && config.AutoUpdate.Value;
+                        if (!auto)
+                        {
+                            statusText.Text = "有新版本 " + info.TargetVersion + "（帮助 → 检查更新）";
+                            return;
+                        }
+                        statusText.Text = "自动更新到 " + info.TargetVersion + " …";
+                        string nodeExe = ResolveNodeExe();
+                        if (string.IsNullOrEmpty(nodeExe))
+                        {
+                            statusText.Text = "自动更新失败：没有可用的 Node";
+                            return;
+                        }
+                        string version = info.TargetVersion;
+                        Task.Run(delegate
+                        {
+                            return Updates.Install(paths, version, nodeExe, log, null);
+                        }).ContinueWith(delegate(Task<string> installTask)
+                        {
+                            string error = installTask.Result;
+                            if (shuttingDown || !IsHandleCreated)
+                            {
+                                return;
+                            }
+                            BeginInvoke(new MethodInvoker(delegate
+                            {
+                                if (string.IsNullOrEmpty(error))
+                                {
+                                    statusText.Text = "已更新到 " + version + "，正在重启服务";
+                                    RestartServer();
+                                }
+                                else
+                                {
+                                    statusText.Text = "自动更新失败（帮助 → 检查更新）";
+                                    log.Error("auto update failed: " + error);
+                                }
+                            }));
+                        });
+                    }));
+                }
+                catch (InvalidOperationException)
+                {
+                }
+            });
+        }
+
         /// <summary>Creates the WebView2 environment and injects plugin content, without navigating.</summary>
         private async Task<bool> PrepareWebView()
         {
@@ -650,6 +867,9 @@ namespace DshDesktop
 
             core.NewWindowRequested += OnNewWindowRequested;
             core.ProcessFailed += OnProcessFailed;
+            // The page owns keyboard focus, so shortcuts are collected in an injected
+            // listener and posted back here.
+            core.WebMessageReceived += OnWebMessageReceived;
             core.NavigationCompleted += OnNavigationCompleted;
             core.DownloadStarting += OnDownloadStarting;
 
@@ -690,6 +910,7 @@ namespace DshDesktop
                 + ", host: " + JsonString(config.Host)
                 + ", platform: " + JsonString("windows") + " };";
             await core.AddScriptToExecuteOnDocumentCreatedAsync(bootstrap);
+            await core.AddScriptToExecuteOnDocumentCreatedAsync(ShortcutListener());
 
             foreach (LoadedPlugin plugin in plugins)
             {
@@ -722,6 +943,25 @@ namespace DshDesktop
                     core.Settings.UserAgent = core.Settings.UserAgent + " " + plugin.Manifest.UserAgentSuffix;
                 }
             }
+        }
+
+        /// <summary>
+        /// Page-side listener for the window shortcuts. The WebView2 surface holds
+        /// keyboard focus, so a listener here is the only place the launcher can see
+        /// Alt combinations while a page is loaded; it forwards them over host messaging.
+        /// </summary>
+        private static string ShortcutListener()
+        {
+            StringBuilder builder = new StringBuilder();
+            builder.Append("(function(){if(window.__DSH_DESKTOP_KEYS__){return;}window.__DSH_DESKTOP_KEYS__=true;");
+            builder.Append("var send=function(action){try{window.chrome.webview.postMessage('dshDesktop:'+action);}catch(e){}};");
+            builder.Append("document.addEventListener('keydown',function(event){");
+            builder.Append("var key=event.key;var action=null;");
+            builder.Append("if(event.altKey&&!event.ctrlKey&&!event.metaKey){var alt={r:'runtime',u:'update',p:'plugins',d:'diagnostics',l:'copy-url'};action=alt[(key||'').toLowerCase()];}");
+            builder.Append("else if(event.ctrlKey&&!event.altKey){if(key==='='||key==='+')action='zoom-in';else if(key==='-')action='zoom-out';else if(key==='0')action='zoom-reset';}");
+            builder.Append("else if(key==='F5')action='reload';else if(key==='F11')action='fullscreen';else if(key==='F12')action='devtools';");
+            builder.Append("if(action){event.preventDefault();event.stopPropagation();send(action);}},true);})();");
+            return builder.ToString();
         }
 
         private static string CssInjector(string css)
@@ -820,6 +1060,9 @@ namespace DshDesktop
         private double currentZoom;
         private int portOverride = -1;
         private volatile bool shuttingDown;
+        private bool updateCheckStarted;
+        private string startupPanel = "";
+        private System.Windows.Forms.Timer panelTimer;
 
         private void SetZoom(double factor)
         {
@@ -1116,36 +1359,74 @@ namespace DshDesktop
             return null;
         }
 
+        /// <summary>
+        /// Handles the window shortcuts wherever the key event arrives from: the form
+        /// itself when it has focus, or the WebView2 control when the page does.
+        /// </summary>
+        /// <param name="key">The pressed key code.</param>
+        /// <param name="control">Whether Control was held.</param>
+        /// <param name="alt">Whether Alt was held.</param>
+        /// <returns>True when the key was consumed.</returns>
+        private bool HandleShortcut(Keys key, bool control, bool alt)
+        {
+            if (alt)
+            {
+                if (key == Keys.R) { ShowRuntimeManager(); return true; }
+                if (key == Keys.U) { ShowUpdateDialog(); return true; }
+                if (key == Keys.P) { ShowPlugins(); return true; }
+                if (key == Keys.D) { ShowDiagnostics(); return true; }
+                if (key == Keys.L) { CopyUrl(); return true; }
+                return false;
+            }
+            if (control)
+            {
+                if (key == Keys.Oemplus || key == Keys.Add) { Zoom(1.1); return true; }
+                if (key == Keys.OemMinus || key == Keys.Subtract) { Zoom(1 / 1.1); return true; }
+                if (key == Keys.D0) { SetZoom(config.ZoomFactor); return true; }
+                return false;
+            }
+            if (key == Keys.F5) { Reload(); return true; }
+            if (key == Keys.F11) { ToggleFullScreen(); return true; }
+            if (key == Keys.F12) { OpenDevTools(); return true; }
+            if (key == Keys.Escape && fullScreen) { ToggleFullScreen(); return true; }
+            return false;
+        }
+
+        /// <summary>Keys reported by the injected page listener, which sees them first.</summary>
+        private void OnWebMessageReceived(object sender, CoreWebView2WebMessageReceivedEventArgs e)
+        {
+            string message;
+            try
+            {
+                message = e.TryGetWebMessageAsString();
+            }
+            catch (Exception ex)
+            {
+                log.Warn("ignoring non-text web message: " + ex.Message);
+                return;
+            }
+            if (string.IsNullOrEmpty(message) || message.IndexOf("dshDesktop", StringComparison.Ordinal) < 0)
+            {
+                return;
+            }
+            log.Info("shortcut from page: " + message);
+            if (message.IndexOf("runtime", StringComparison.Ordinal) >= 0) { ShowRuntimeManager(); return; }
+            if (message.IndexOf("update", StringComparison.Ordinal) >= 0) { ShowUpdateDialog(); return; }
+            if (message.IndexOf("plugins", StringComparison.Ordinal) >= 0) { ShowPlugins(); return; }
+            if (message.IndexOf("diagnostics", StringComparison.Ordinal) >= 0) { ShowDiagnostics(); return; }
+            if (message.IndexOf("copy-url", StringComparison.Ordinal) >= 0) { CopyUrl(); return; }
+            if (message.IndexOf("zoom-in", StringComparison.Ordinal) >= 0) { Zoom(1.1); return; }
+            if (message.IndexOf("zoom-out", StringComparison.Ordinal) >= 0) { Zoom(1 / 1.1); return; }
+            if (message.IndexOf("zoom-reset", StringComparison.Ordinal) >= 0) { SetZoom(config.ZoomFactor); return; }
+            if (message.IndexOf("reload", StringComparison.Ordinal) >= 0) { Reload(); return; }
+            if (message.IndexOf("fullscreen", StringComparison.Ordinal) >= 0) { ToggleFullScreen(); return; }
+            if (message.IndexOf("devtools", StringComparison.Ordinal) >= 0) { OpenDevTools(); return; }
+        }
+
         private void OnKeyDown(object sender, KeyEventArgs e)
         {
-            if (e.KeyCode == Keys.F5)
+            if (HandleShortcut(e.KeyCode, e.Control, e.Alt))
             {
-                Reload();
-                e.Handled = true;
-            }
-            else if (e.KeyCode == Keys.F11)
-            {
-                ToggleFullScreen();
-                e.Handled = true;
-            }
-            else if (e.KeyCode == Keys.F12)
-            {
-                OpenDevTools();
-                e.Handled = true;
-            }
-            else if (e.Control && (e.KeyCode == Keys.Oemplus || e.KeyCode == Keys.Add))
-            {
-                Zoom(1.1);
-                e.Handled = true;
-            }
-            else if (e.Control && (e.KeyCode == Keys.OemMinus || e.KeyCode == Keys.Subtract))
-            {
-                Zoom(1 / 1.1);
-                e.Handled = true;
-            }
-            else if (e.Control && e.KeyCode == Keys.D0)
-            {
-                SetZoom(config.ZoomFactor);
                 e.Handled = true;
             }
         }

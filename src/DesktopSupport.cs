@@ -43,6 +43,16 @@ namespace DshDesktop
         [DataMember(Name = "extraArgs")] public string[] ExtraArgs = new string[0];
         [DataMember(Name = "env")] public Dictionary<string, string> Env = new Dictionary<string, string>();
         [DataMember(Name = "zoomFactor")] public double ZoomFactor = 1.0;
+        /// <summary>"auto" (bundled first, then system), "bundled", or "system".</summary>
+        [DataMember(Name = "nodeMode")] public string NodeMode = "auto";
+        /// <summary>Explicit node.exe to use; empty means detect.</summary>
+        [DataMember(Name = "nodePath")] public string NodePath = "";
+        /// <summary>npm dist-tag channel to follow: "next" (includes prereleases) or "latest".</summary>
+        [DataMember(Name = "channel")] public string Channel = "next";
+        /// <summary>Null means the key was omitted, which checks on startup.</summary>
+        [DataMember(Name = "checkUpdatesOnStartup")] public bool? CheckUpdatesOnStartup;
+        /// <summary>Null means the key was omitted, which never installs without asking.</summary>
+        [DataMember(Name = "autoUpdate")] public bool? AutoUpdate;
     }
 
     /// <summary>One plugin directory's launcher.json. Every field is optional.</summary>
@@ -84,10 +94,18 @@ namespace DshDesktop
     {
         public static T Read<T>(string path) where T : class
         {
-            using (FileStream fs = File.OpenRead(path))
+            byte[] bytes = File.ReadAllBytes(path);
+            // Editors on Windows happily write a UTF-8 BOM; strip it so a
+            // hand-edited config.json or launcher.json still loads.
+            int offset = 0;
+            if (bytes.Length >= 3 && bytes[0] == 0xEF && bytes[1] == 0xBB && bytes[2] == 0xBF)
+            {
+                offset = 3;
+            }
+            using (MemoryStream stream = new MemoryStream(bytes, offset, bytes.Length - offset))
             {
                 DataContractJsonSerializer serializer = new DataContractJsonSerializer(typeof(T));
-                return (T)serializer.ReadObject(fs);
+                return (T)serializer.ReadObject(stream);
             }
         }
 
