@@ -2,6 +2,10 @@
 
 把 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) 打包成**双击即用**的桌面应用：内置 Node 运行时与 DSH 运行时，用 WebView2 承载一个**独立窗口**，不需要在终端执行 `npx @deepseek-ai/dsh web`，也不会打开浏览器。窗口、品牌、注入界面和 DSH 宿主插件都可以通过 `plugins\` 目录扩展。
 
+![DSH Desktop 独立窗口运行截图](docs/images/window.png)
+
+上图是实际运行截图，由 `tests\smoke.ps1` 用 `PrintWindow` 从真实窗口抓取：窗口标题被示例插件改写为「DSH Desktop · 我的软件 AI 助手」，顶部品牌条与右下角标识来自注入样式，底部状态栏显示服务地址与当前缩放。整套流程（启动 → 服务就绪 → 插件挂载 → 窗口渲染 → 关闭回收）有 18 项自动化断言覆盖。
+
 ## 快速开始
 
 1. 双击 `app\DSH Desktop.exe`。
