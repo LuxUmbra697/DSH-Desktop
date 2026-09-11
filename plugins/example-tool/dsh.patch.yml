@@ -1,0 +1,14 @@
+# 示例：把自定义宿主插件插入 web profile 的插件树。
+#
+# 这个文件由启动器通过 `dsh web --patch <本文件>` 传入，叠加在 web bundle 与
+# profile 用户层之上。相对路径 `./dsh/...` 由 DSH 的加载器按本文件所在目录解析。
+#
+# 验证方式：
+#   node app\runtime\app\node_modules\@deepseek-ai\dsh\lib\bin.js --profile web --patch <本文件> --dump-config
+
+- insert:
+    - id: myapp-tools
+      name: ./dsh/myapp-tools.mjs
+      config:
+        serviceUrl: ''
+        apiToken: ''

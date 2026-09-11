@@ -1,0 +1,18 @@
+{
+  "name": "example-branding",
+  "description": "示例插件：改窗口标题与尺寸、注入品牌样式与脚本、给 DSH 进程加环境变量。",
+  "enabled": true,
+  "title": "DSH Desktop · 我的软件 AI 助手",
+  "width": 1360,
+  "height": 880,
+  "zoomFactor": 1.0,
+  "injectCss": ["inject/theme.css"],
+  "injectJs": ["inject/shortcuts.js"],
+  "env": {
+    "DSH_DESKTOP_BRAND": "example-branding"
+  },
+  "args": [],
+  "trustedHosts": [],
+  "dshPatch": [],
+  "dshPlugins": []
+}

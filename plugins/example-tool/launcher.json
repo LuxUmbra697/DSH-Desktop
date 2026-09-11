@@ -1,0 +1,10 @@
+{
+  "name": "example-tool",
+  "description": "示例插件：通过 dsh.patch.yml 把自定义 DSH 宿主插件（两个业务工具）挂进 dsh web 的插件树。",
+  "enabled": true,
+  "dshPatch": ["dsh.patch.yml"],
+  "dshLinkModules": "dsh",
+  "env": {},
+  "args": [],
+  "trustedHosts": []
+}

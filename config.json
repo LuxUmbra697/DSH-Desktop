@@ -1,0 +1,21 @@
+{
+  "title": "DSH Desktop",
+  "host": "127.0.0.1",
+  "port": 0,
+  "trustedHosts": [],
+  "dshHome": "",
+  "workspace": "",
+  "width": 1280,
+  "height": 840,
+  "minWidth": 420,
+  "minHeight": 320,
+  "maximizeOnSmallScreen": true,
+  "lan": false,
+  "devTools": true,
+  "openExternalLinks": true,
+  "pluginsDisabled": false,
+  "startupTimeoutSeconds": 240,
+  "extraArgs": [],
+  "env": {},
+  "zoomFactor": 1.0
+}

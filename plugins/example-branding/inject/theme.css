@@ -1,0 +1,57 @@
+/*
+ * 示例启动器插件样式：只使用稳定的选择器和 CSS 变量，不修改 DSH 的 DOM 结构。
+ * 目标覆盖三类改造：品牌色、顶部状态条、窄屏响应式密度。
+ */
+
+:root {
+  --dsh-desktop-accent: #22d3a6;
+  --dsh-desktop-accent-soft: rgba(34, 211, 166, 0.16);
+}
+
+/* 顶部品牌条：用固定定位覆盖，避免影响 DSH 自身的布局计算。 */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0 0 auto 0;
+  height: 3px;
+  z-index: 2147483647;
+  background: linear-gradient(90deg, var(--dsh-desktop-accent), #3b82f6 60%, #8b5cf6);
+  pointer-events: none;
+}
+
+/* 右下角运行标识，鼠标悬停显示插件名。 */
+body::after {
+  content: 'DSH Desktop';
+  position: fixed;
+  right: 10px;
+  bottom: 8px;
+  z-index: 2147483646;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font: 11px/1.6 'Microsoft YaHei UI', system-ui, sans-serif;
+  color: var(--dsh-desktop-accent);
+  background: var(--dsh-desktop-accent-soft);
+  border: 1px solid rgba(34, 211, 166, 0.35);
+  pointer-events: none;
+  opacity: 0.75;
+}
+
+/* 窄屏 / 平板：压缩留白，保证聊天区可用宽度。 */
+@media (max-width: 900px) {
+  body::after {
+    display: none;
+  }
+}
+
+@media (max-width: 640px) {
+  body::before {
+    height: 2px;
+  }
+}
+
+/* 触屏设备：加大输入区的点击热区。 */
+@media (pointer: coarse) {
+  body::after {
+    content: '触屏模式';
+  }
+}
