@@ -13,7 +13,7 @@
 [![Payload](https://img.shields.io/badge/payload-210%20MB-22d3a6?style=flat-square)](#how-small-can-it-be-pruned)
 [![DSH](https://img.shields.io/badge/DSH-0.1.5--rc.2-4d6bfe?style=flat-square)](https://github.com/deepseek-ai/deepseek-harness)
 
-[English](README.en.md) · [简体中文](README.md) · [Plugin guide (Chinese)](docs/PLUGIN-GUIDE.zh.md)
+[Download](#quick-start) · [Payload](#how-small-can-it-be-pruned) · [Plugins](#plugin-system) · [简体中文](README.md)
 
 </div>
 
@@ -37,23 +37,6 @@
 | Launcher plugins change the window, branding, and injection; DSH host plugins are mounted into the DSH plugin tree through `--patch`. Both example plugins appear in this table. | Version, install directory, DSH_HOME, workspace, access address, plugin count, log path, WebView2 status, and the tail of the server output — sending this screenshot when something breaks locates most of the problem. |
 
 ---
-
-## How it differs from similar projects
-
-The similar project [anywhere-labs/dsh-desktop](https://github.com/anywhere-labs/dsh-desktop) also turns DSH into a desktop app, and it deserves respect. The two take different routes; the differences are below (figures come from each repository and its releases, checked on 2026-09-11):
-
-| Dimension | DSH Desktop (this project) | anywhere-labs/dsh-desktop |
-| --- | --- | --- |
-| Shell technology | **WebView2 + the .NET compiler that ships with Windows**, launcher itself 0.2 MB | Electron 44, installer 128.7 MB |
-| Distribution form | Portable directory / ZIP, unzip and run, no installer | NSIS installer (`DSH-Desktop-2.0.9-x64-Setup.exe`) |
-| Distributable payload | **210.9 MB**, about 121 MB after cutting the bundled Node | Installer contains Electron + Node + pnpm + pinned dependencies |
-| Runtime detection | **Detects the machine's Node / npm / WebView2**; a qualifying version is enough to delete the bundled copy | Does not detect system Node, ships its own runtime and builds its own shim |
-| In-place DSH update | **Supported**: check the npm version → update in place → prune automatically → restart | No upstream in-place update, the whole application can only be upgraded |
-| Build dependencies | .NET Framework 4.8 (ships with Windows) + Node (to pull dependencies) | Full pnpm repository + Electron binaries + signing toolchain |
-| Plugin model | Launcher plugins (window/branding/injection) + DSH host plugins (`--patch`), **zero npm installs** | Plugin marketplace + bundled pnpm install |
-| Automated self-test | **18 end-to-end assertions + 6 automatically captured screenshots** (`tests/`) | CI skips part of the smoke tests (see its `ci.yml`) |
-
-In one sentence: **it gives you a finished installer, while this project gives you a base you can prune, update, and extend with plugins.**
 
 ## Main features
 

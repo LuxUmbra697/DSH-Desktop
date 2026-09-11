@@ -230,6 +230,7 @@ namespace DshDesktop
             // whole window sets both keys to false, and Alt+M switches them at runtime.
             if (!config.ShowMenuBar.HasValue) config.ShowMenuBar = true;
             if (!config.ShowStatusBar.HasValue) config.ShowStatusBar = true;
+            if (config.PluginMarketUrl == null) config.PluginMarketUrl = "";
         }
 
         /// <summary>Applies the configured window chrome, keeping the page layout in charge.</summary>
@@ -416,6 +417,7 @@ namespace DshDesktop
             view.DropDownItems.Add(MenuItem("在系统浏览器中打开", delegate { OpenInBrowser(); }));
 
             ToolStripMenuItem pluginMenu = new ToolStripMenuItem("插件(&P)");
+            pluginMenu.DropDownItems.Add(MenuItem("打开 DSH 插件市场(&M)", delegate { OpenPluginMarket(); }));
             pluginMenu.DropDownItems.Add(MenuItem("已加载插件…", delegate { ShowPlugins(); }));
             pluginMenu.DropDownItems.Add(MenuItem("打开插件目录", delegate { OpenPath(paths.PluginsDirectory); }));
             pluginMenu.DropDownItems.Add(MenuItem("重新扫描插件（需重启）", delegate { RestartServer(); }));
@@ -1279,6 +1281,22 @@ namespace DshDesktop
                         MessageBoxButtons.OK, MessageBoxIcon.Error);
                 }
             }
+        }
+
+        /// <summary>
+        /// Opens the plugin directory people browse for DSH plugins. The address is a
+        /// config field because the community keeps moving it between sites.
+        /// </summary>
+        private void OpenPluginMarket()
+        {
+            string url = config.PluginMarketUrl;
+            if (string.IsNullOrEmpty(url))
+            {
+                url = "https://github.com/deepseek-ai/deepseek-harness";
+                statusText.Text = "打开 DSH 插件市场（可在 config.json 的 pluginMarketUrl 改成社区索引）";
+            }
+            log.Info("opening plugin market: " + url);
+            OpenExternal(url);
         }
 
         private void ShowPlugins()

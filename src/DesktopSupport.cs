@@ -57,6 +57,8 @@ namespace DshDesktop
         [DataMember(Name = "showMenuBar")] public bool? ShowMenuBar;
         /// <summary>Null means the key was omitted, which shows the status bar.</summary>
         [DataMember(Name = "showStatusBar")] public bool? ShowStatusBar;
+        /// <summary>Where the plugin-marketplace button points; empty uses the built-in default.</summary>
+        [DataMember(Name = "pluginMarketUrl")] public string PluginMarketUrl = "";
     }
 
     /// <summary>One plugin directory's launcher.json. Every field is optional.</summary>

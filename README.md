@@ -7,13 +7,9 @@
 **把 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) 装进一个独立窗口：双击即用，不开终端，不开浏览器。**
 
 [![Release](https://img.shields.io/github/v/release/LuxUmbra697/DSH-Desktop?style=flat-square&color=22d3a6)](https://github.com/LuxUmbra697/DSH-Desktop/releases)
-[![Stars](https://img.shields.io/github/stars/LuxUmbra697/DSH-Desktop?style=flat-square&color=22d3a6)](https://github.com/LuxUmbra697/DSH-Desktop/stargazers)
 [![License](https://img.shields.io/github/license/LuxUmbra697/DSH-Desktop?style=flat-square&color=22d3a6)](LICENSE)
-[![Platform](https://img.shields.io/badge/platform-Windows%2010%2F11-0078d4?style=flat-square)](#快速开始)
-[![Payload](https://img.shields.io/badge/payload-210%20MB-22d3a6?style=flat-square)](#体积可以裁到多小)
-[![DSH](https://img.shields.io/badge/DSH-0.1.5--rc.2-4d6bfe?style=flat-square)](https://github.com/deepseek-ai/deepseek-harness)
 
-[简体中文](README.md) · [English](README.en.md) · [插件开发指南](docs/PLUGIN-GUIDE.zh.md)
+[下载](#快速开始) · [体积](#体积可以裁到多小) · [插件](#插件系统) · [English](README.en.md)
 
 </div>
 
@@ -38,27 +34,11 @@
 
 ---
 
-## 与同类项目的区别
-
-同类项目 [anywhere-labs/dsh-desktop](https://github.com/anywhere-labs/dsh-desktop) 也是把 DSH 做成桌面端，值得尊重。两者路线不同，差异如下（数据来自各自仓库与 release，2026-09-11 核对）：
-
-| 维度 | DSH Desktop（本项目） | anywhere-labs/dsh-desktop |
-| --- | --- | --- |
-| 外壳技术 | **WebView2 + 系统自带 .NET 编译器**，启动器本体 0.2 MB | Electron 44，安装包 128.7 MB |
-| 分发形态 | 便携目录 / ZIP，解压即用，无安装器 | NSIS 安装器（`DSH-Desktop-2.0.9-x64-Setup.exe`） |
-| 可分发载荷 | **210.9 MB**，裁掉内置 Node 后约 121 MB | 安装包含 Electron + Node + pnpm + 固定依赖 |
-| 运行环境探测 | **会检测本机 Node / npm / WebView2**，版本合格即可删除内置副本 | 不探测系统 Node，自带运行时并自造 shim |
-| DSH 就地更新 | **支持**：检查 npm 版本 → 原地更新 → 自动精简 → 重启 | 不支持上游就地更新，只能整体升级应用 |
-| 构建依赖 | .NET Framework 4.8（Windows 自带）+ Node（拉依赖） | pnpm 全量仓库 + Electron 二进制 + 签名工具链 |
-| 插件模型 | 启动器插件（窗口/品牌/注入）+ DSH 宿主插件（`--patch`），**零 npm 安装** | 插件市场 + 内置 pnpm 安装 |
-| 自动化自测 | **18 项端到端断言 + 6 张截图自动采集**（`tests/`） | CI 跳过部分 smoke（见其 `ci.yml`） |
-
-一句话：**它给你一个成品安装包，本项目给你一个可裁剪、可更新、可插件化的底座。**
-
 ## 主要功能
 
 - **独立窗口**：内置 Node 运行时启动 `dsh web`，启动器解析带 token 的地址（`GET /?token=…` 换 303 + Cookie），用 WebView2 承载——全程不调用系统浏览器，也不需要你在终端敲 `npx @deepseek-ai/dsh web`。
 - **零安装、可携带**：整个 `app\` 目录复制走就能用；`data\` 里是 `DSH_HOME`、工作区、WebView2 用户数据与窗口状态，删掉即恢复出厂。
+- **界面不被遮挡**：页面区域严格等于「客户区 − 菜单栏 − 状态栏」，按 `Alt+M` / `F10` 可让 DSH 界面独占整个窗口；自测里有 4 项断言专门盯布局。
 - **体积可控**：构建时自动精简（源映射、类型声明、调试符号、其它平台预编译，共约 104 MB），运行时还能按需删除内置 Node / 内置 npm。
 - **运行环境自检**：检测系统 Node（PATH / 注册表安装位置 / nvm 目录）、npm、WebView2 运行时；版本不合格只提醒、不允许删除内置副本。
 - **就地更新 DSH**：查询 npm registry 的 `next`/`latest`，在界面里点一下就更新 `runtime\app` 并重启；可切换渠道，可选开机自动检查（`checkUpdatesOnStartup`）与自动更新（`autoUpdate`）。
@@ -146,6 +126,33 @@ cd DSH-Desktop
 ```
 
 完整字段、优先级、注入上下文与排障见 [插件开发指南](docs/PLUGIN-GUIDE.zh.md)；把 DSH 当外部软件 AI 底座的系统性方案见上游仓库的 `docs/ai-backend/`。
+
+## 插件市场与「把本项目装进 DSH」
+
+**找插件**：菜单 `插件 → 打开 DSH 插件市场`（`Alt+P` 之后第一项）会打开插件索引页；地址可以在 `config.json` 里改：
+
+```jsonc
+{ "pluginMarketUrl": "https://github.com/deepseek-ai/deepseek-harness" }
+```
+
+社区索引地址会变，所以它是一个配置项而不是写死的常量。**本项目尚未进入官方插件市场**：那需要官方渠道审核与发布权限，我无法代为提交；README 末尾的「上架信息」一节给出了可直接使用的条目文案，你按官方流程提交即可。
+
+**把本项目的示例插件装进任意 DSH**（不限于本启动器）：`plugins\example-tool` 里的 `dsh\myapp-tools.mjs` + `dsh.patch.yml` 是标准 DSH 宿主插件，三种装法任选：
+
+```powershell
+# 1) 临时叠加（不改任何文件，最适合试用）
+dsh --profile web --patch "plugins\example-tool\dsh.patch.yml"
+
+# 2) 装进 profile，长期生效（bundle 形态的插件会被自动登记为 patch 层）
+dsh plugin --profile web add "plugins\example-tool"
+
+# 3) 手工放进用户级 patch 层，对所有 profile 生效
+#    把 dsh.patch.yml 的 insert 行追加到 $DSH_HOME\cordis.patch.yml
+```
+
+装完用 `dsh --profile web --dump-config` 确认 `myapp-tools` 这一行出现了，再启动服务，日志里应出现插件自己的启动标记 `[myapp-tools] applied: …`。
+
+**把第三方 DSH 插件装进本启动器**：把它放进 `plugins\<名字>\`，在 `launcher.json` 里用 `dshPatch` 指向它的 patch 文件、用 `dshLinkModules` 让它能解析 `@deepseek-ai/*` 依赖——不需要 npm install，也不依赖网络。
 
 ## 命令行参数与快捷键
 
@@ -260,6 +267,17 @@ DSH 会在 `$DSH_HOME` 下建立 profile，并把依赖以目录联接链接到�
 - [ ] 插件市场的本地索引：从 `plugins\` 一键安装/禁用/排序
 - [ ] 多窗口：同一 DSH 实例开多个工作区窗口
 - [ ] 简体中文以外的界面语言（启动器文案走资源文件）
+
+## 上架信息（提交插件市场时可直接使用）
+
+- 名称：`DSH Desktop`
+- 一句话：把 DeepSeek Harness 装进独立窗口的 Windows 启动器，支持插件改造与就地更新
+- 仓库：<https://github.com/LuxUmbra697/DSH-Desktop>
+- 许可：MIT
+- 分类：桌面端 / 启动器 / 插件宿主
+- 依赖：Windows 10/11 x64；WebView2 运行时（系统自带或安装 Edge 即可）
+- 体积：便携包 74.8 MB；可分发载荷 210.9 MB（可裁剪到约 110 MB）
+- 兼容：DSH `0.1.5-rc.2`，Node `^22.19.0 || >=24.0.0`
 
 ## 致谢
 
