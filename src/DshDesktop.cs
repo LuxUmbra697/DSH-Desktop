@@ -25,7 +25,7 @@ namespace DshDesktop
 {
     internal static class Program
     {
-        private const string Version = "1.1.2";
+        private const string Version = "1.1.3";
         private const string MutexName = "Global\\DshDesktop.SingleInstance.6F0B6E2A";
 
         [STAThread]
@@ -330,7 +330,10 @@ namespace DshDesktop
 
             WindowState state = LoadWindowState();
             bool restored = false;
-            if (state != null && state.Width > 200 && state.Height > 200)
+            // A window smaller than the minimum is a poisoned record (a collapsed or
+            // auxiliary window was saved); ignore it rather than starting up unusable.
+            if (state != null && state.Width >= 480 && state.Height >= 360
+                && state.Width >= config.MinWidth && state.Height >= config.MinHeight)
             {
                 Rectangle candidate = new Rectangle(state.X, state.Y, state.Width, state.Height);
                 Rectangle visible = Screen.GetWorkingArea(candidate);

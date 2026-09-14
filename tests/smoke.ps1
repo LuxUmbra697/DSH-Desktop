@@ -48,6 +48,56 @@ function Wait-ForLogMatch([string]$Pattern, [int]$Seconds) {
     return $null
 }
 
+if (-not ('AppWindows' -as [type])) {
+    Add-Type @'
+using System;
+using System.Collections.Generic;
+using System.Runtime.InteropServices;
+using System.Text;
+public static class AppWindows {
+    [DllImport("user32.dll")] private static extern bool EnumWindows(EnumProc callback, IntPtr param);
+    [DllImport("user32.dll")] private static extern uint GetWindowThreadProcessId(IntPtr hWnd, out uint pid);
+    [DllImport("user32.dll")] private static extern bool IsWindowVisible(IntPtr hWnd);
+    [DllImport("user32.dll")] private static extern bool GetWindowRect(IntPtr hWnd, out RECT rect);
+    [DllImport("user32.dll", CharSet = CharSet.Unicode)] private static extern int GetWindowTextW(IntPtr hWnd, StringBuilder text, int count);
+    [StructLayout(LayoutKind.Sequential)] public struct RECT { public int Left, Top, Right, Bottom; }
+    private delegate bool EnumProc(IntPtr hWnd, IntPtr param);
+
+    /// <summary>Widest visible top-level window of the process, as "width|handle|title".</summary>
+    public static string Widest(uint target, string titlePattern) {
+        List<string> found = new List<string>();
+        EnumWindows(delegate(IntPtr hWnd, IntPtr param) {
+            uint pid;
+            GetWindowThreadProcessId(hWnd, out pid);
+            if (pid != target || !IsWindowVisible(hWnd)) return true;
+            RECT rect;
+            GetWindowRect(hWnd, out rect);
+            StringBuilder title = new StringBuilder(512);
+            GetWindowTextW(hWnd, title, 512);
+            string text = title.ToString();
+            if (titlePattern.Length > 0 && text.IndexOf(titlePattern, StringComparison.OrdinalIgnoreCase) < 0) return true;
+            found.Add((rect.Right - rect.Left) + "|" + hWnd.ToInt64() + "|" + text);
+            return true;
+        }, IntPtr.Zero);
+        string best = "";
+        int bestWidth = -1;
+        foreach (string entry in found) {
+            int width = int.Parse(entry.Split('|')[0]);
+            if (width > bestWidth) { bestWidth = width; best = entry; }
+        }
+        return best;
+    }
+}
+'@
+}
+
+function Get-AppWindow([int]$ProcessId, [string]$TitlePattern = 'DSH Desktop') {
+    $entry = [AppWindows]::Widest([uint32]$ProcessId, $TitlePattern)
+    if (-not $entry) { return $null }
+    $parts = $entry -split '\|'
+    return [pscustomobject]@{ Width = [int]$parts[0]; Handle = [IntPtr][int64]$parts[1]; Title = $parts[2] }
+}
+
 function Test-PortOpen([int]$Port) {
     try {
         $client = New-Object System.Net.Sockets.TcpClient
@@ -77,6 +127,10 @@ if ($existing) {
     Start-Sleep -Seconds 3
 }
 if (Test-Path $logFile) { Remove-Item $logFile -Force -ErrorAction SilentlyContinue }
+# Start from the configured size every run: a remembered window would make the
+# layout assertions depend on whatever the last session left behind.
+$windowState = Join-Path $root 'app\data\window.json'
+if (Test-Path $windowState) { Remove-Item $windowState -Force }
 
 $nodeBefore = Get-Count 'node'
 $webviewBefore = Get-Count 'msedgewebview2'
@@ -89,15 +143,15 @@ $launcher = Start-Process -FilePath $Exe -WorkingDirectory (Split-Path -Parent $
 Assert-True '启动器进程已创建' ($null -ne $launcher) ("pid=" + $launcher.Id)
 
 $windowReady = $false
-$proc = $null
+$window = $null
 for ($i = 0; $i -lt 40; $i++) {
-    $proc = Get-Process -Id $launcher.Id -ErrorAction SilentlyContinue
-    if ($proc -and $proc.MainWindowHandle -ne 0) { $windowReady = $true; break }
+    $window = Get-AppWindow $launcher.Id
+    if ($window -and $window.Width -ge 400) { $windowReady = $true; break }
     if ($launcher.HasExited) { break }
     Start-Sleep -Milliseconds 500
 }
 $handle = 'n/a'
-if ($proc) { $handle = $proc.MainWindowHandle }
+if ($window) { $handle = $window.Handle }
 Assert-True '启动器独立窗口已出现' $windowReady ("handle=" + $handle)
 
 # Serving URL -------------------------------------------------------------
@@ -211,13 +265,16 @@ public static class WindowCapture {
     }
     $proc = Get-Process -Id $launcher.Id -ErrorAction SilentlyContinue
     if (-not $proc) { throw '启动器进程已不存在' }
-    if ($proc.MainWindowHandle -eq 0) { throw '窗口句柄为空' }
-    [WindowCapture]::SetForegroundWindow($proc.MainWindowHandle) | Out-Null
+    # MainWindowHandle can point at a small auxiliary window, so the widest visible
+    # window of the process is the one that actually shows the page.
+    $window = Get-AppWindow $launcher.Id
+    if (-not $window) { throw '找不到可见窗口' }
+    [WindowCapture]::SetForegroundWindow($window.Handle) | Out-Null
     Start-Sleep -Milliseconds 1500
     if (Test-Path $shot) { Remove-Item $shot -Force }
-    $method = [WindowCapture]::Capture($proc.MainWindowHandle, $shot)
+    $method = [WindowCapture]::Capture($window.Handle, $shot)
     $captured = (Test-Path $shot)
-    Write-Host ("    " + $method) -ForegroundColor DarkGray
+    Write-Host ("    " + $method + " — " + $window.Title) -ForegroundColor DarkGray
 } catch {
     Write-Host ("    截屏跳过: " + $_.Exception.Message) -ForegroundColor DarkYellow
 }

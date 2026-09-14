@@ -135,7 +135,7 @@ cd DSH-Desktop
 { "pluginMarketUrl": "https://github.com/deepseek-ai/deepseek-harness" }
 ```
 
-社区索引地址会变，所以它是一个配置项而不是写死的常量。**本项目尚未进入官方插件市场**：那需要官方渠道审核与发布权限，我无法代为提交；README 末尾的「上架信息」一节给出了可直接使用的条目文案，你按官方流程提交即可。
+社区索引地址会变，所以它是一个配置项而不是写死的常量。**本项目尚未进入官方插件市场**：那需要官方渠道审核与发布权限，我无法代为提交；
 
 **把本项目的示例插件装进任意 DSH**（不限于本启动器）：`plugins\example-tool` 里的 `dsh\myapp-tools.mjs` + `dsh.patch.yml` 是标准 DSH 宿主插件，三种装法任选：
 
@@ -258,36 +258,3 @@ DSH 会在 `$DSH_HOME` 下建立 profile，并把依赖以目录联接链接到�
 - **进程边界**：关窗即通过 Job Object 结束整棵进程树；插件与工具受 DSH 自身的权限预设与沙箱策略约束。
 - **插件即可信代码**：注入的 CSS/JS 运行在页面上下文，`dsh.patch.yml` 挂载的插件运行在 DSH 进程内——只安装你自己写的插件。路径参数仅允许插件目录内的相对路径，越界会被忽略并记日志。
 - **无遥测**：本启动器不发送任何统计；唯一的出站请求是 npm registry 的版本查询与 nodejs.org 的可选 Node 下载。
-
-## 路线图
-
-- [ ] 便携模式与服务模式切换（把 `DSH_HOME` 指到用户目录、多用户隔离）
-- [ ] 系统托盘：常驻后台、气泡提示更新
-- [ ] 增量更新：只替换变化文件，缩短更新耗时
-- [ ] 插件市场的本地索引：从 `plugins\` 一键安装/禁用/排序
-- [ ] 多窗口：同一 DSH 实例开多个工作区窗口
-- [ ] 简体中文以外的界面语言（启动器文案走资源文件）
-
-## 上架信息（提交插件市场时可直接使用）
-
-- 名称：`DSH Desktop`
-- 一句话：把 DeepSeek Harness 装进独立窗口的 Windows 启动器，支持插件改造与就地更新
-- 仓库：<https://github.com/LuxUmbra697/DSH-Desktop>
-- 许可：MIT
-- 分类：桌面端 / 启动器 / 插件宿主
-- 依赖：Windows 10/11 x64；WebView2 运行时（系统自带或安装 Edge 即可）
-- 体积：便携包 74.8 MB；可分发载荷 210.9 MB（可裁剪到约 110 MB）
-- 兼容：DSH `0.1.5-rc.2`，Node `^22.19.0 || >=24.0.0`
-
-## 致谢
-
-- [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness)：本项目的底座，MIT 许可。所有 Agent 能力都来自它。
-- [Cordis](https://github.com/cordiverse/cordis)：DSH 的插件运行时。
-- [Microsoft WebView2](https://learn.microsoft.com/microsoft-edge/webview2/)：窗口内嵌渲染。
-- 图标与横幅由 Qwen 图像生成模型产出，再用 GDI+ 做圆角遮罩与文字排版。
-
-## 许可
-
-本项目以 MIT 许可发布，见 [LICENSE](LICENSE)。随包分发的第三方组件：Node.js（Node 许可）、Microsoft WebView2 SDK（见 `app\webview2\LICENSE.txt`）、DeepSeek Harness 及其依赖（MIT 及其各自许可）。
-
-本项目是社区项目，与 DeepSeek 官方无隶属关系；“DeepSeek”“DeepSeek Harness” 商标归其所有者。
